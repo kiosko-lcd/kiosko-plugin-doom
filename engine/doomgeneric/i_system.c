@@ -454,6 +454,8 @@ void I_Error (char *error, ...)
         exit(-1);
     }
 
+#elif defined(__EMSCRIPTEN__)
+    // Kiosko: no desktop to show a box on (and system() must not run).
 #else
     {
         ZenityErrorBox(msgbuf);
