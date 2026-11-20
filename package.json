@@ -1,0 +1,71 @@
+{
+  "name": "kiosko-plugin-doom",
+  "version": "0.1.0",
+  "description": "Doom on your Kiosko panel: the game plays its own demos as an interlude. Engine (doomgeneric, GPL) in a process of its own; Freedoom levels unless you bring your own IWAD.",
+  "type": "module",
+  "license": "GPL-2.0-or-later",
+  "author": "Loksly",
+  "keywords": [
+    "kiosko",
+    "kiosko-plugin",
+    "lcd",
+    "doom",
+    "freedoom",
+    "interlude"
+  ],
+  "homepage": "https://github.com/kiosko-lcd/kiosko-plugin-doom#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/kiosko-lcd/kiosko-plugin-doom.git"
+  },
+  "bugs": {
+    "url": "https://github.com/kiosko-lcd/kiosko-plugin-doom/issues"
+  },
+  "exports": {
+    ".": {
+      "source": "./src/index.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "kiosko": {
+    "plugin": "./dist/index.js",
+    "id": "doom",
+    "sdk": "^0.2.0",
+    "languages": [
+      "en",
+      "es",
+      "de",
+      "zh-Hant",
+      "zh-Hans"
+    ],
+    "manifest": "./kiosko-manifest.json"
+  },
+  "files": [
+    "dist",
+    "docs",
+    "kiosko-manifest.json",
+    "README.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=22.18"
+  },
+  "scripts": {
+    "build": "node build.mjs",
+    "build:engine": "engine/build.sh",
+    "test": "node --conditions=source --test \"src/**/*.test.ts\"",
+    "check": "tsc -p tsconfig.json",
+    "prepublishOnly": "npm run build"
+  },
+  "peerDependencies": {
+    "@kiosko/sdk": "^0.2.0"
+  },
+  "devDependencies": {
+    "@kiosko/core": "^0.2.1",
+    "@kiosko/sdk": "^0.2.1",
+    "@napi-rs/canvas": "^1.0.10",
+    "@types/node": "^24.0.0",
+    "esbuild": "^0.25.0",
+    "typescript": "^5.9.3"
+  }
+}

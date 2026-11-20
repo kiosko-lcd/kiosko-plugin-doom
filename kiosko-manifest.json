@@ -1,0 +1,86 @@
+{
+  "manifest": 1,
+  "id": "doom",
+  "package": "kiosko-plugin-doom",
+  "name": {
+    "en": "Doom",
+    "es": "Doom",
+    "de": "Doom",
+    "zh-Hans": "Doom",
+    "zh-Hant": "Doom"
+  },
+  "version": "0.1.0",
+  "description": {
+    "en": "Doom on your panel: the game plays its own demos as an interlude. The engine (doomgeneric, GPL) runs in a process of its own; the levels are Freedoom unless you bring your own IWAD.",
+    "es": "Doom en tu panel: el juego reproduce sus propias demos como interludio. El motor (doomgeneric, GPL) corre en un proceso propio; los niveles son de Freedoom salvo que pongas tu propio IWAD.",
+    "de": "Doom auf deinem Panel: Das Spiel zeigt seine eigenen Demos als Zwischenspiel. Die Engine (doomgeneric, GPL) läuft in einem eigenen Prozess; die Level sind Freedoom, außer du bringst dein eigenes IWAD mit.",
+    "zh-Hans": "在面板上运行 Doom：游戏把自己的演示作为插曲播放。引擎（doomgeneric，GPL）在独立进程中运行；关卡默认来自 Freedoom，也可使用你自己的 IWAD。",
+    "zh-Hant": "在面板上執行 Doom：遊戲把自己的示範當作插曲播放。引擎（doomgeneric，GPL）在獨立行程中執行；關卡預設來自 Freedoom，也可使用你自己的 IWAD。"
+  },
+  "author": "Loksly",
+  "license": "GPL-2.0-or-later",
+  "homepage": "https://github.com/kiosko-lcd/kiosko-plugin-doom#readme",
+  "repository": "https://github.com/kiosko-lcd/kiosko-plugin-doom",
+  "sdk": "^0.2.0",
+  "platforms": [
+    "linux",
+    "darwin",
+    "win32"
+  ],
+  "languages": [
+    "en",
+    "de",
+    "es",
+    "zh-Hans",
+    "zh-Hant"
+  ],
+  "categories": [],
+  "tags": [],
+  "permissions": {
+    "network": [
+      "github.com",
+      "release-assets.githubusercontent.com"
+    ],
+    "exec": [
+      "node"
+    ],
+    "files": [
+      "user"
+    ]
+  },
+  "riskyOptions": [
+    {
+      "path": "doom/attract: wad",
+      "risk": [
+        "path"
+      ],
+      "secret": false
+    }
+  ],
+  "requires": [],
+  "optional": [],
+  "widgets": [],
+  "sources": [],
+  "interludes": [
+    {
+      "type": "doom/attract",
+      "name": {
+        "en": "Doom demos",
+        "es": "Demos de Doom",
+        "de": "Doom-Demos",
+        "zh-Hans": "Doom 演示",
+        "zh-Hant": "Doom 示範"
+      },
+      "description": {
+        "en": "The game plays its own recorded demos between title screens, with no one at the controls. Freedoom by default (free levels and art, downloaded once, 24 MB); your own IWAD if you have one.",
+        "es": "El juego reproduce sus propias demos grabadas entre pantallas de título, sin nadie a los mandos. Freedoom por defecto (niveles y gráficos libres, se descarga una vez, 24 MB); tu propio IWAD si tienes uno.",
+        "de": "Das Spiel zeigt seine eigenen aufgezeichneten Demos zwischen den Titelbildern, ganz ohne Steuerung. Standardmäßig Freedoom (freie Level und Grafiken, einmal heruntergeladen, 24 MB); dein eigenes IWAD, falls du eines hast.",
+        "zh-Hans": "游戏在标题画面之间自动播放录制好的演示，无需操作。默认使用 Freedoom（免费关卡和美术，只下载一次，24 MB）；也可以用你自己的 IWAD。",
+        "zh-Hant": "遊戲在標題畫面之間自動播放錄製好的示範，無需操作。預設使用 Freedoom（免費關卡和美術，只下載一次，24 MB）；也可以用你自己的 IWAD。"
+      },
+      "icon": "gamepad-2",
+      "fps": 30
+    }
+  ],
+  "templates": []
+}
