@@ -1,0 +1,48 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+# The plugin is tested against the current Kiosko (SDK, drawing kit, libs),
+# checked out next to it the same way plugin development is set up locally:
+#   kiosko/  and  kiosko-plugins/<this repo>/
+jobs:
+  test:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        working-directory: kiosko-plugins/${{ github.event.repository.name }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: kiosko-plugins/${{ github.event.repository.name }}
+      - uses: actions/checkout@v4
+        with:
+          repository: ${{ github.repository_owner }}/kiosko
+          path: kiosko
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - run: npm install --no-audit --no-fund
+        working-directory: kiosko
+      - run: npm run dev:link
+        working-directory: kiosko
+      - run: npm run check
+      # The engine's tests play a real IWAD: Freedoom, checked against its published SHA-256 (Linux
+      # only; elsewhere they are skipped and the rest runs).
+      - name: Freedoom for the engine's tests
+        if: runner.os == 'Linux'
+        run: |
+          curl -fsSL -o "$RUNNER_TEMP/freedoom.zip" https://github.com/freedoom/freedoom/releases/download/v0.13.0/freedoom-0.13.0.zip
+          echo "3f9b264f3e3ce503b4fb7f6bdcb1f419d93c7b546f4df3e874dd878db9688f59  $RUNNER_TEMP/freedoom.zip" | sha256sum -c -
+          unzip -q -j "$RUNNER_TEMP/freedoom.zip" freedoom-0.13.0/freedoom1.wad -d "$RUNNER_TEMP"
+          echo "KIOSKO_DOOM_WAD=$RUNNER_TEMP/freedoom1.wad" >> "$GITHUB_ENV"
+      - run: npm test
+      - run: npm run build
