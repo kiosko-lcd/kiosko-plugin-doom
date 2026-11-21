@@ -9,6 +9,7 @@
 import { defineInterlude, definePlugin, t } from '@kiosko/sdk';
 import { Engine } from './engine.ts';
 import { drawHud, sides } from './hud.ts';
+import { SharedGame } from './shared.ts';
 import { freedoom, ownWad } from './wad.ts';
 
 /** The game's pixels are not square: 320×200 is shown at 4:3. */
@@ -19,6 +20,12 @@ export function viewport(width: number, height: number, aspect = ASPECT): { x: n
   const w = Math.min(width, Math.round(height * aspect));
   const h = Math.min(height, Math.round(w / aspect));
   return { x: Math.round((width - w) / 2), y: Math.round((height - h) / 2), w, h };
+}
+
+/** Panels in the stack (1–3) and this screen's row in it (1 = top), whatever the options say. */
+export function stackOf(o: { panels?: number; row?: number }): { panels: number; row: number } {
+  const panels = Math.max(1, Math.min(3, Math.round(o.panels ?? 1)));
+  return { panels, row: Math.max(1, Math.min(panels, Math.round(o.row ?? 1))) };
 }
 
 /** The runtime cuts it at the slot's `maxSeconds` (600 at most); this is only the ceiling. */
@@ -51,6 +58,32 @@ export const attract = defineInterlude({
       },
       placeholder: '~/games/doom1.wad',
     }),
+    panels: t.integer({
+      default: 1,
+      min: 1,
+      max: 3,
+      label: { en: 'Panels in the stack', es: 'Paneles de la pila', de: 'Panels im Stapel', 'zh-Hans': '堆叠的面板数', 'zh-Hant': '堆疊的面板數' },
+      help: {
+        en: 'Panels stacked one on top of the other that show one game between them (three 1920×462 bars are nearly 4:3). Give each screen this interlude, at the same times, with its row.',
+        es: 'Paneles apilados uno encima de otro que muestran una sola partida entre todos (tres barras de 1920×462 son casi 4:3). Pon este interludio en cada pantalla, a las mismas horas, con su fila.',
+        de: 'Übereinander gestapelte Panels, die gemeinsam ein Spiel zeigen (drei 1920×462-Leisten sind fast 4:3). Gib jedem Bildschirm dieses Zwischenspiel zu denselben Zeiten, mit seiner Reihe.',
+        'zh-Hans': '上下堆叠、共同显示同一局游戏的面板数（三块 1920×462 长条屏接近 4:3）。在每块屏幕上设置这个插曲，时间相同，并选择各自的行。',
+        'zh-Hant': '上下堆疊、共同顯示同一局遊戲的面板數（三塊 1920×462 長條螢幕接近 4:3）。在每塊螢幕上設定這個插曲，時間相同，並選擇各自的列。',
+      },
+    }),
+    row: t.integer({
+      default: 1,
+      min: 1,
+      max: 3,
+      label: { en: 'Row in the stack', es: 'Fila en la pila', de: 'Reihe im Stapel', 'zh-Hans': '在堆叠中的行', 'zh-Hant': '在堆疊中的列' },
+      help: {
+        en: 'Which of the stacked panels this screen is: 1 is the top one.',
+        es: 'Cuál de los paneles apilados es esta pantalla: 1 es el de arriba.',
+        de: 'Welches der gestapelten Panels dieser Bildschirm ist: 1 ist das oberste.',
+        'zh-Hans': '这块屏幕是堆叠中的哪一块：1 为最上面。',
+        'zh-Hant': '這塊螢幕是堆疊中的哪一塊：1 為最上面。',
+      },
+    }),
     showStats: t.boolean({
       default: true,
       label: { en: 'Show the game’s numbers beside it', es: 'Mostrar los datos de la partida a los lados', de: 'Spielwerte daneben zeigen', 'zh-Hans': '在两侧显示游戏数据', 'zh-Hant': '在兩側顯示遊戲資料' },
@@ -71,29 +104,35 @@ export const attract = defineInterlude({
       say(`not playing: ${wad.reason}`);
       return null;
     }
-    const engine = await Engine.start({ wad: wad.path });
-    say(`playing the demos of ${wad.name}`);
-    const small = ctx.canvas.createCanvas(engine.width, engine.height);
+    // Every screen playing this WAD now shares one game (a stack shows one picture).
+    const game = await SharedGame.join(wad.path, () => Engine.start({ wad: wad.path }));
+    const { panels, row: rowOption } = stackOf(ctx.options);
+    say(panels > 1 ? `playing the demos of ${wad.name}, row ${rowOption} of a stack of ${panels}` : `playing the demos of ${wad.name}`);
+    const small = ctx.canvas.createCanvas(game.engine.width, game.engine.height);
     const sg = small.getContext('2d');
-    const image = sg.createImageData(engine.width, engine.height);
-    const view = viewport(ctx.width, ctx.height);
-    const hud = ctx.options.showStats ? sides(ctx.width, ctx.height, view) : null;
-    let t0 = 0;
+    const image = sg.createImageData(game.engine.width, game.engine.height);
+    // The game at 4:3 on the whole stack; this screen paints its own strip of it.
+    const view = viewport(ctx.width, ctx.height * panels);
+    const shift = (rowOption - 1) * ctx.height;
+    const hud = ctx.options.showStats && panels === 1 ? sides(ctx.width, ctx.height, view) : null;
+    let left = false;
     return {
       frames: MAX_FRAMES,
       async draw(g, i) {
-        if (i === 0) t0 = Date.now();
         // Game time is wall time: when the panel can't keep up, the game
         // skips frames rather than going slow.
-        const f = await engine.frame(Date.now() - t0);
+        const f = await game.frame(Date.now());
         image.data.set(f.pixels);
         sg.putImageData(image, 0, 0);
         g.fillStyle = hud ? ctx.theme.colors.bg : '#000';
         g.fillRect(0, 0, ctx.width, ctx.height);
         g.imageSmoothingEnabled = false;
-        g.drawImage(small, view.x, view.y, view.w, view.h);
+        g.drawImage(small, view.x, view.y - shift, view.w, view.h);
         if (hud) drawHud(g, ctx.theme, ctx.t, f.state, hud, wad.name);
-        if (i >= MAX_FRAMES - 1) engine.close();
+        if (i >= MAX_FRAMES - 1 && !left) {
+          left = true;
+          game.leave();
+        }
       },
     };
   },

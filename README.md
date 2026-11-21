@@ -61,7 +61,21 @@ weapon and its ammo on the right.
 | Option | Type | Default | |
 |---|---|---|---|
 | `wad` | path | `""` | IWAD. A game data file of your own (doom1.wad, DOOM.WAD, DOOM2.WAD…). Empty: Freedoom. |
-| `showStats` | boolean | `true` | The game's numbers beside it, when each side has at least 220 px. |
+| `panels` | integer 1–3 | `1` | Panels stacked one on top of the other that show one game between them. |
+| `row` | integer 1–3 | `1` | Which of the stacked panels this screen is: 1 is the top one. |
+| `showStats` | boolean | `true` | The game's numbers beside it, when each side has at least 220 px (not in a stack). |
+
+#### Three panels, one game
+
+Three 1920×462 bars stacked are 1920×1386, nearly the game's 4:3. Give each
+of the three screens this interlude at the same times, with `panels: 3` and
+its `row` (1 at the top): they play one game between them, from one engine
+and one clock, each painting its third.
+
+![One game on three stacked panels](docs/stack.jpg)
+
+Screens playing the same WAD at the same time always share the game, stacked
+or not: one engine for all of them.
 
 ## How it works
 

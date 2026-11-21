@@ -8,7 +8,8 @@ import { deflateRawSync } from 'node:zlib';
 import { createCanvas, loadImage } from '@napi-rs/canvas';
 import { createBaseContext, themeById } from '@kiosko/sdk';
 import { Engine } from './engine.ts';
-import plugin, { attract, viewport } from './index.ts';
+import plugin, { attract, stackOf, viewport } from './index.ts';
+import { SharedGame, type GameEngine } from './shared.ts';
 import { STATE } from './protocol.ts';
 import { drawHud, levelTime, mapName, sides } from './hud.ts';
 import { FREEDOOM, downloadDone, freedoom, freedoomDir, ownWad, unzip } from './wad.ts';
@@ -143,7 +144,7 @@ test('the interlude paints the game in the middle of a wide panel, black around 
   const height = 462;
   const logs: string[] = [];
   const base = createBaseContext({ now: Date.now(), log: (m) => logs.push(m), dataDir: tmp() });
-  const player = await attract.prepare({ ...base, options: { wad: WAD!, showStats: false }, width, height, seed: 1, theme: themeById(undefined), canvas: { createCanvas, loadImage } as never, sources: {} });
+  const player = await attract.prepare({ ...base, options: { wad: WAD!, panels: 1, row: 1, showStats: false }, width, height, seed: 1, theme: themeById(undefined), canvas: { createCanvas, loadImage } as never, sources: {} });
   assert.ok(player, logs.join('\n'));
   const canvas = createCanvas(width, height);
   const g = canvas.getContext('2d');
@@ -201,4 +202,74 @@ test('HUD: paints its numbers in the panel’s theme, inside its sides', () => {
   texts.length = 0;
   drawHud(g, theme, say, s, sides(1920, 462, viewport(1920, 462))!, 'Freedoom 0.13.0');
   assert.ok(texts.includes('Freedoom 0.13.0') && !texts.includes('E1M6'));
+});
+
+test('stack options are kept in range: 1–3 panels, a row inside them', () => {
+  assert.deepEqual(stackOf({}), { panels: 1, row: 1 });
+  assert.deepEqual(stackOf({ panels: 3, row: 2 }), { panels: 3, row: 2 });
+  assert.deepEqual(stackOf({ panels: 2, row: 3 }), { panels: 2, row: 2 });
+  assert.deepEqual(stackOf({ panels: 9, row: 0 }), { panels: 3, row: 1 });
+  // Three 1920×462 bars: the game at 4:3 nearly fills them.
+  assert.deepEqual(viewport(1920, 3 * 462), { x: 36, y: 0, w: 1848, h: 1386 });
+});
+
+/** An engine that counts what it is asked: frame k at ms is grey k. */
+function fakeEngine(log: string[]): GameEngine {
+  let alive = true;
+  let n = 0;
+  return {
+    width: 4, height: 2,
+    get alive() { return alive; },
+    async frame(ms) {
+      log.push(`frame ${ms}`);
+      await new Promise((r) => setTimeout(r, 5));
+      n++;
+      return { ms, width: 4, height: 2, pixels: new Uint8Array(32).fill(n), state: [] };
+    },
+    close() { log.push('close'); alive = false; },
+  };
+}
+
+test('screens playing at once share one game: one engine, one clock, the same frames', async () => {
+  const log: string[] = [];
+  const start = async () => (log.push('start'), fakeEngine(log));
+  const [a, b, c] = await Promise.all([SharedGame.join('w', start), SharedGame.join('w', start), SharedGame.join('w', start)]);
+  assert.ok(a === b && b === c);
+  assert.equal(log.filter((l) => l === 'start').length, 1);
+  assert.equal(a.playing, 3);
+  // Asked together (three panels painting the same moment): one frame for all.
+  const [f1, f2, f3] = await Promise.all([a.frame(1000), b.frame(1001), c.frame(1002)]);
+  assert.ok(f1 === f2 && f2 === f3);
+  assert.equal(log.filter((l) => l.startsWith('frame')).length, 1);
+  // Within a tic, still the same picture; later, a new one, on the shared clock.
+  assert.equal(await a.frame(1010), f1);
+  const later = await b.frame(1100);
+  assert.notEqual(later, f1);
+  assert.equal(later.ms, 100);
+  a.leave(); b.leave();
+  assert.ok(!log.includes('close'), 'still one screen on it');
+  c.leave();
+  assert.equal(log.filter((l) => l === 'close').length, 1);
+  // The next slot starts another game.
+  const d = await SharedGame.join('w', start);
+  assert.notEqual(d, a);
+  assert.equal(log.filter((l) => l === 'start').length, 2);
+  d.leave();
+});
+
+test('a stack of three paints one picture: the rows put together are the whole game', { skip: !WAD && 'set KIOSKO_DOOM_WAD to an IWAD' }, async () => {
+  const width = 1920, height = 462;
+  const base = createBaseContext({ now: Date.now(), log: () => {}, dataDir: tmp() });
+  const rows = await Promise.all([1, 2, 3].map((row) => attract.prepare({ ...base, options: { wad: WAD!, panels: 3, row, showStats: true }, width, height, seed: 1, theme: themeById(undefined), canvas: { createCanvas, loadImage } as never, sources: {} })));
+  const canvases = rows.map(() => createCanvas(width, height));
+  // Painted as the runtime would: frame by frame, the three screens at the same moment.
+  for (let i = 0; i < 3; i++) await Promise.all(rows.map((p, k) => p!.draw(canvases[k]!.getContext('2d'), i)));
+  const strip = (k: number, y: number) => [...canvases[k]!.getContext('2d').getImageData(0, y, width, 1).data];
+  // Black at the edges (36 px each side), the game everywhere between, and no seam: the last
+  // row of one panel and the first of the next are neighbouring lines of the same picture.
+  for (const k of [0, 1, 2]) assert.deepEqual([...canvases[k]!.getContext('2d').getImageData(10, 230, 1, 1).data], [0, 0, 0, 255]);
+  const differs = (a: number[], b: number[]) => a.reduce((n, v, i) => n + Math.abs(v - b[i]!), 0) / a.length;
+  assert.ok(differs(strip(0, height - 1), strip(1, 0)) < 40, 'top and middle meet');
+  assert.ok(differs(strip(1, height - 1), strip(2, 0)) < 40, 'middle and bottom meet');
+  for (const p of rows) await p!.draw(createCanvas(width, height).getContext('2d'), 600 * 30 - 1);
 });
