@@ -9,13 +9,13 @@
     "zh-Hans": "Doom",
     "zh-Hant": "Doom"
   },
-  "version": "0.2.1",
+  "version": "0.2.2",
   "description": {
     "en": "Doom on your panel: the game plays its own demos as an interlude. The engine (doomgeneric, GPL) runs in a process of its own; the levels are Freedoom unless you bring your own IWAD.",
     "es": "Doom en tu panel: el juego reproduce sus propias demos como interludio. El motor (doomgeneric, GPL) corre en un proceso propio; los niveles son de Freedoom salvo que pongas tu propio IWAD.",
     "de": "Doom auf deinem Panel: Das Spiel zeigt seine eigenen Demos als Zwischenspiel. Die Engine (doomgeneric, GPL) läuft in einem eigenen Prozess; die Level sind Freedoom, außer du bringst dein eigenes IWAD mit.",
-    "zh-Hans": "在面板上运行 Doom：游戏把自己的演示作为插曲播放。引擎（doomgeneric，GPL）在独立进程中运行；关卡默认来自 Freedoom，也可使用你自己的 IWAD。",
-    "zh-Hant": "在面板上執行 Doom：遊戲把自己的示範當作插曲播放。引擎（doomgeneric，GPL）在獨立行程中執行；關卡預設來自 Freedoom，也可使用你自己的 IWAD。"
+    "zh-Hans": "在副屏上运行 Doom：游戏把自己的演示作为过场动画播放。引擎（doomgeneric，GPL）在独立进程中运行；关卡默认来自 Freedoom，也可使用你自己的 IWAD。",
+    "zh-Hant": "在面板上執行 Doom：遊戲把自己的示範當作過場動畫播放。引擎（doomgeneric，GPL）在獨立的處理程序中執行；關卡預設來自 Freedoom，也可使用你自己的 IWAD。"
   },
   "author": "Loksly",
   "license": "GPL-2.0-or-later",
