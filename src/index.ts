@@ -8,6 +8,7 @@
  */
 import { defineInterlude, definePlugin, t } from '@kiosko/sdk';
 import { Engine } from './engine.ts';
+import { drawHud, sides } from './hud.ts';
 import { freedoom, ownWad } from './wad.ts';
 
 /** The game's pixels are not square: 320×200 is shown at 4:3. */
@@ -50,6 +51,17 @@ export const attract = defineInterlude({
       },
       placeholder: '~/games/doom1.wad',
     }),
+    showStats: t.boolean({
+      default: true,
+      label: { en: 'Show the game’s numbers beside it', es: 'Mostrar los datos de la partida a los lados', de: 'Spielwerte daneben zeigen', 'zh-Hans': '在两侧显示游戏数据', 'zh-Hant': '在兩側顯示遊戲資料' },
+      help: {
+        en: 'On a wide panel: the map, time, kills, items and secrets on the left; health, armour and ammo on the right.',
+        es: 'En un panel ancho: el mapa, el tiempo, los enemigos, objetos y secretos a la izquierda; la salud, la armadura y la munición a la derecha.',
+        de: 'Auf einem breiten Panel: Karte, Zeit, Gegner, Gegenstände und Geheimnisse links; Gesundheit, Rüstung und Munition rechts.',
+        'zh-Hans': '在宽屏面板上：左侧显示地图、时间、击杀、物品和秘密；右侧显示生命、护甲和弹药。',
+        'zh-Hant': '在寬螢幕面板上：左側顯示地圖、時間、擊殺、物品與秘密；右側顯示生命、護甲與彈藥。',
+      },
+    }),
   }),
   async prepare(ctx) {
     const say = (msg: string) => ctx.log(`doom: ${msg}`);
@@ -65,6 +77,7 @@ export const attract = defineInterlude({
     const sg = small.getContext('2d');
     const image = sg.createImageData(engine.width, engine.height);
     const view = viewport(ctx.width, ctx.height);
+    const hud = ctx.options.showStats ? sides(ctx.width, ctx.height, view) : null;
     let t0 = 0;
     return {
       frames: MAX_FRAMES,
@@ -75,10 +88,11 @@ export const attract = defineInterlude({
         const f = await engine.frame(Date.now() - t0);
         image.data.set(f.pixels);
         sg.putImageData(image, 0, 0);
-        g.fillStyle = '#000';
+        g.fillStyle = hud ? ctx.theme.colors.bg : '#000';
         g.fillRect(0, 0, ctx.width, ctx.height);
         g.imageSmoothingEnabled = false;
         g.drawImage(small, view.x, view.y, view.w, view.h);
+        if (hud) drawHud(g, ctx.theme, ctx.t, f.state, hud, wad.name);
         if (i >= MAX_FRAMES - 1) engine.close();
       },
     };
@@ -88,7 +102,7 @@ export const attract = defineInterlude({
 export default definePlugin({
   id: 'doom',
   name: { en: 'Doom', es: 'Doom', de: 'Doom', 'zh-Hans': 'Doom', 'zh-Hant': 'Doom' },
-  version: '0.1.0',
+  version: '0.2.0',
   description: {
     en: 'Doom on your panel: the game plays its own demos as an interlude. The engine (doomgeneric, GPL) runs in a process of its own; the levels are Freedoom unless you bring your own IWAD.',
     es: 'Doom en tu panel: el juego reproduce sus propias demos como interludio. El motor (doomgeneric, GPL) corre en un proceso propio; los niveles son de Freedoom salvo que pongas tu propio IWAD.',
@@ -101,6 +115,7 @@ export default definePlugin({
   homepage: 'https://github.com/kiosko-lcd/kiosko-plugin-doom#readme',
   repository: 'https://github.com/kiosko-lcd/kiosko-plugin-doom',
   sdk: '^0.2.0',
+  languages: ['en', 'es', 'de', 'zh-Hant', 'zh-Hans'],
   permissions: {
     network: ['github.com', 'release-assets.githubusercontent.com'],
     exec: ['node'],

@@ -53,12 +53,15 @@ sending the frames.
 ### Doom demos — `doom/attract`
 
 The game plays its own recorded demos between title screens, with no one at
-the controls. The game (320×200, shown at 4:3) is centred on the panel, black
-around it.
+the controls. The game (320×200, shown at 4:3) is centred on the panel. On a
+wide one, the game's numbers go beside it in the panel's theme: the map, the
+level's time, kills, items and secrets on the left; health, armour, the
+weapon and its ammo on the right.
 
 | Option | Type | Default | |
 |---|---|---|---|
 | `wad` | path | `""` | IWAD. A game data file of your own (doom1.wad, DOOM.WAD, DOOM2.WAD…). Empty: Freedoom. |
+| `showStats` | boolean | `true` | The game's numbers beside it, when each side has at least 220 px. |
 
 ## How it works
 

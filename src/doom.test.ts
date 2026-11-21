@@ -10,6 +10,7 @@ import { createBaseContext, themeById } from '@kiosko/sdk';
 import { Engine } from './engine.ts';
 import plugin, { attract, viewport } from './index.ts';
 import { STATE } from './protocol.ts';
+import { drawHud, levelTime, mapName, sides } from './hud.ts';
 import { FREEDOOM, downloadDone, freedoom, freedoomDir, ownWad, unzip } from './wad.ts';
 
 /** A real IWAD to run the engine with (freedoom1.wad, doom1.wad…); the engine tests skip without one. */
@@ -142,7 +143,7 @@ test('the interlude paints the game in the middle of a wide panel, black around 
   const height = 462;
   const logs: string[] = [];
   const base = createBaseContext({ now: Date.now(), log: (m) => logs.push(m), dataDir: tmp() });
-  const player = await attract.prepare({ ...base, options: { wad: WAD! }, width, height, seed: 1, theme: themeById(undefined), canvas: { createCanvas, loadImage } as never, sources: {} });
+  const player = await attract.prepare({ ...base, options: { wad: WAD!, showStats: false }, width, height, seed: 1, theme: themeById(undefined), canvas: { createCanvas, loadImage } as never, sources: {} });
   assert.ok(player, logs.join('\n'));
   const canvas = createCanvas(width, height);
   const g = canvas.getContext('2d');
@@ -160,4 +161,44 @@ test('the plugin: one interlude, GPL, honest about what it does', () => {
   assert.equal(plugin.license, 'GPL-2.0-or-later');
   assert.ok(plugin.permissions!.network!.includes('github.com'));
   assert.ok(plugin.permissions!.exec!.includes('node'));
+});
+
+test('HUD: room beside the game on a bar, none on a square panel', () => {
+  const bar = sides(1920, 462, viewport(1920, 462));
+  assert.ok(bar && bar.left.w >= 220 && bar.left.x + bar.left.w < 652 && bar.right.x > 652 + 616);
+  assert.equal(sides(480, 480, viewport(480, 480)), null);
+  // 1280×480 (Trofeo Vision 6.86″): 320 px a side, 268 once padded: room enough.
+  assert.equal(sides(1280, 480, viewport(1280, 480))?.left.w, 268);
+  // 854×480 (Fan Bracket Vision-1): 107 px a side, no.
+  assert.equal(sides(854, 480, viewport(854, 480)), null);
+});
+
+test('HUD: map names and level time as the game writes them', () => {
+  const s = Array(16).fill(0);
+  s[STATE.episode] = 1; s[STATE.map] = 6; s[STATE.gamemode] = 3;
+  assert.equal(mapName(s), 'E1M6');
+  s[STATE.gamemode] = 2; s[STATE.map] = 7;
+  assert.equal(mapName(s), 'MAP07');
+  assert.equal(levelTime(35 * 65), '1:05');
+});
+
+test('HUD: paints its numbers in the panel’s theme, inside its sides', () => {
+  const s = Array(16).fill(0);
+  Object.assign(s, { [STATE.gamestate]: 0, [STATE.episode]: 1, [STATE.map]: 6, [STATE.leveltime]: 35 * 83, [STATE.health]: 20, [STATE.armor]: 50, [STATE.weapon]: 2, [STATE.ammo]: 8, [STATE.kills]: 11, [STATE.totalKills]: 30, [STATE.items]: 5, [STATE.totalItems]: 60, [STATE.secrets]: 1, [STATE.totalSecrets]: 4 });
+  const canvas = createCanvas(1920, 462);
+  const g = canvas.getContext('2d');
+  const texts: string[] = [];
+  const fill = g.fillText.bind(g);
+  (g as unknown as { fillText: typeof g.fillText }).fillText = (t: string, x: number, y: number, m?: number) => (texts.push(t), fill(t, x, y, m));
+  const theme = themeById(undefined);
+  const say = (x: { en: string } & Record<string, string>) => x.en;
+  drawHud(g, theme, say, s, sides(1920, 462, viewport(1920, 462))!, 'Freedoom');
+  for (const t of ['E1M6', '1:23', '11 / 30', '5 / 60', '1 / 4', '20%', '50%', '8', 'SHOTGUN']) assert.ok(texts.includes(t), `${t} in ${texts.join(' | ')}`);
+  // Nothing on the game's third.
+  const middle = g.getImageData(652, 0, 616, 462).data;
+  assert.ok(middle.every((v, i) => i % 4 === 3 || v === 0), 'the game area is left alone');
+  s[STATE.gamestate] = 3;
+  texts.length = 0;
+  drawHud(g, theme, say, s, sides(1920, 462, viewport(1920, 462))!, 'Freedoom 0.13.0');
+  assert.ok(texts.includes('Freedoom 0.13.0') && !texts.includes('E1M6'));
 });

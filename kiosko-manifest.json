@@ -9,7 +9,7 @@
     "zh-Hans": "Doom",
     "zh-Hant": "Doom"
   },
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": {
     "en": "Doom on your panel: the game plays its own demos as an interlude. The engine (doomgeneric, GPL) runs in a process of its own; the levels are Freedoom unless you bring your own IWAD.",
     "es": "Doom en tu panel: el juego reproduce sus propias demos como interludio. El motor (doomgeneric, GPL) corre en un proceso propio; los niveles son de Freedoom salvo que pongas tu propio IWAD.",
@@ -29,10 +29,10 @@
   ],
   "languages": [
     "en",
-    "de",
     "es",
-    "zh-Hans",
-    "zh-Hant"
+    "de",
+    "zh-Hant",
+    "zh-Hans"
   ],
   "categories": [],
   "tags": [],
