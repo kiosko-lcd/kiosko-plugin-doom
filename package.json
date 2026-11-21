@@ -4,7 +4,7 @@
   "description": "Doom on your Kiosko panel: the game plays its own demos as an interlude. Engine (doomgeneric, GPL) in a process of its own; Freedoom levels unless you bring your own IWAD.",
   "type": "module",
   "license": "GPL-2.0-or-later",
-  "author": "Loksly",
+  "author": "Loksly <info@kioskolcd.dev> (https://kioskolcd.dev)",
   "keywords": [
     "kiosko",
     "kiosko-plugin",
