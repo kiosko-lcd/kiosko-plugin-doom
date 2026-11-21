@@ -8,9 +8,11 @@ import { deflateRawSync } from 'node:zlib';
 import { createCanvas, loadImage } from '@napi-rs/canvas';
 import { createBaseContext, themeById } from '@kiosko/sdk';
 import { Engine } from './engine.ts';
-import plugin, { attract, viewport } from './index.ts';
+import plugin, { attract, playArgs, stackOf, viewport } from './index.ts';
+import { SharedGame, type GameEngine } from './shared.ts';
 import { STATE } from './protocol.ts';
-import { FREEDOOM, downloadDone, freedoom, freedoomDir, ownWad, unzip } from './wad.ts';
+import { drawHud, levelTime, mapName, sides } from './hud.ts';
+import { FREEDOOM, downloadDone, freedoom, freedoomDir, hasMapLumps, ownWad, unzip } from './wad.ts';
 
 /** A real IWAD to run the engine with (freedoom1.wad, doom1.wad…); the engine tests skip without one. */
 const WAD = process.env.KIOSKO_DOOM_WAD;
@@ -142,7 +144,7 @@ test('the interlude paints the game in the middle of a wide panel, black around 
   const height = 462;
   const logs: string[] = [];
   const base = createBaseContext({ now: Date.now(), log: (m) => logs.push(m), dataDir: tmp() });
-  const player = await attract.prepare({ ...base, options: { wad: WAD! }, width, height, seed: 1, theme: themeById(undefined), canvas: { createCanvas, loadImage } as never, sources: {} });
+  const player = await attract.prepare({ ...base, options: { wad: WAD!, panels: 1, row: 1, showStats: false }, width, height, seed: 1, theme: themeById(undefined), canvas: { createCanvas, loadImage } as never, sources: {} });
   assert.ok(player, logs.join('\n'));
   const canvas = createCanvas(width, height);
   const g = canvas.getContext('2d');
@@ -160,4 +162,162 @@ test('the plugin: one interlude, GPL, honest about what it does', () => {
   assert.equal(plugin.license, 'GPL-2.0-or-later');
   assert.ok(plugin.permissions!.network!.includes('github.com'));
   assert.ok(plugin.permissions!.exec!.includes('node'));
+});
+
+test('HUD: room beside the game on a bar, none on a square panel', () => {
+  const bar = sides(1920, 462, viewport(1920, 462));
+  assert.ok(bar && bar.left.w >= 220 && bar.left.x + bar.left.w < 652 && bar.right.x > 652 + 616);
+  assert.equal(sides(480, 480, viewport(480, 480)), null);
+  // 1280×480 (Trofeo Vision 6.86″): 320 px a side, 268 once padded: room enough.
+  assert.equal(sides(1280, 480, viewport(1280, 480))?.left.w, 268);
+  // 854×480 (Fan Bracket Vision-1): 107 px a side, no.
+  assert.equal(sides(854, 480, viewport(854, 480)), null);
+});
+
+test('HUD: map names and level time as the game writes them', () => {
+  const s = Array(16).fill(0);
+  s[STATE.episode] = 1; s[STATE.map] = 6; s[STATE.gamemode] = 3;
+  assert.equal(mapName(s), 'E1M6');
+  s[STATE.gamemode] = 2; s[STATE.map] = 7;
+  assert.equal(mapName(s), 'MAP07');
+  assert.equal(levelTime(35 * 65), '1:05');
+});
+
+test('HUD: paints its numbers in the panel’s theme, inside its sides', () => {
+  const s = Array(16).fill(0);
+  Object.assign(s, { [STATE.gamestate]: 0, [STATE.episode]: 1, [STATE.map]: 6, [STATE.leveltime]: 35 * 83, [STATE.health]: 20, [STATE.armor]: 50, [STATE.weapon]: 2, [STATE.ammo]: 8, [STATE.kills]: 11, [STATE.totalKills]: 30, [STATE.items]: 5, [STATE.totalItems]: 60, [STATE.secrets]: 1, [STATE.totalSecrets]: 4 });
+  const canvas = createCanvas(1920, 462);
+  const g = canvas.getContext('2d');
+  const texts: string[] = [];
+  const fill = g.fillText.bind(g);
+  (g as unknown as { fillText: typeof g.fillText }).fillText = (t: string, x: number, y: number, m?: number) => (texts.push(t), fill(t, x, y, m));
+  const theme = themeById(undefined);
+  const say = (x: { en: string } & Record<string, string>) => x.en;
+  drawHud(g, theme, say, s, sides(1920, 462, viewport(1920, 462))!, 'Freedoom');
+  for (const t of ['E1M6', '1:23', '11 / 30', '5 / 60', '1 / 4', '20%', '50%', '8', 'SHOTGUN']) assert.ok(texts.includes(t), `${t} in ${texts.join(' | ')}`);
+  // Nothing on the game's third.
+  const middle = g.getImageData(652, 0, 616, 462).data;
+  assert.ok(middle.every((v, i) => i % 4 === 3 || v === 0), 'the game area is left alone');
+  s[STATE.gamestate] = 3;
+  texts.length = 0;
+  drawHud(g, theme, say, s, sides(1920, 462, viewport(1920, 462))!, 'Freedoom 0.13.0');
+  assert.ok(texts.includes('Freedoom 0.13.0') && !texts.includes('E1M6'));
+});
+
+test('stack options are kept in range: 1–3 panels, a row inside them', () => {
+  assert.deepEqual(stackOf({}), { panels: 1, row: 1 });
+  assert.deepEqual(stackOf({ panels: 3, row: 2 }), { panels: 3, row: 2 });
+  assert.deepEqual(stackOf({ panels: 2, row: 3 }), { panels: 2, row: 2 });
+  assert.deepEqual(stackOf({ panels: 9, row: 0 }), { panels: 3, row: 1 });
+  // Three 1920×462 bars: the game at 4:3 nearly fills them.
+  assert.deepEqual(viewport(1920, 3 * 462), { x: 36, y: 0, w: 1848, h: 1386 });
+});
+
+/** An engine that counts what it is asked: frame k at ms is grey k. */
+function fakeEngine(log: string[]): GameEngine {
+  let alive = true;
+  let n = 0;
+  return {
+    width: 4, height: 2,
+    get alive() { return alive; },
+    async frame(ms) {
+      log.push(`frame ${ms}`);
+      await new Promise((r) => setTimeout(r, 5));
+      n++;
+      return { ms, width: 4, height: 2, pixels: new Uint8Array(32).fill(n), state: [] };
+    },
+    key(pressed, key) { log.push(`key ${key} ${pressed}`); },
+    close() { log.push('close'); alive = false; },
+  };
+}
+
+test('screens playing at once share one game: one engine, one clock, the same frames', async () => {
+  const log: string[] = [];
+  const start = async () => (log.push('start'), fakeEngine(log));
+  const [a, b, c] = await Promise.all([SharedGame.join('w', start), SharedGame.join('w', start), SharedGame.join('w', start)]);
+  assert.ok(a === b && b === c);
+  assert.equal(log.filter((l) => l === 'start').length, 1);
+  assert.equal(a.playing, 3);
+  // Asked together (three panels painting the same moment): one frame for all.
+  const [f1, f2, f3] = await Promise.all([a.frame(1000), b.frame(1001), c.frame(1002)]);
+  assert.ok(f1 === f2 && f2 === f3);
+  assert.equal(log.filter((l) => l.startsWith('frame')).length, 1);
+  // Within a tic, still the same picture; later, a new one, on the shared clock.
+  assert.equal(await a.frame(1010), f1);
+  const later = await b.frame(1100);
+  assert.notEqual(later, f1);
+  assert.equal(later.ms, 100);
+  a.leave(); b.leave();
+  assert.ok(!log.includes('close'), 'still one screen on it');
+  c.leave();
+  assert.equal(log.filter((l) => l === 'close').length, 1);
+  // The next slot starts another game.
+  const d = await SharedGame.join('w', start);
+  assert.notEqual(d, a);
+  assert.equal(log.filter((l) => l === 'start').length, 2);
+  d.leave();
+});
+
+test('a stack of three paints one picture: the rows put together are the whole game', { skip: !WAD && 'set KIOSKO_DOOM_WAD to an IWAD' }, async () => {
+  const width = 1920, height = 462;
+  const base = createBaseContext({ now: Date.now(), log: () => {}, dataDir: tmp() });
+  const rows = await Promise.all([1, 2, 3].map((row) => attract.prepare({ ...base, options: { wad: WAD!, panels: 3, row, showStats: true }, width, height, seed: 1, theme: themeById(undefined), canvas: { createCanvas, loadImage } as never, sources: {} })));
+  const canvases = rows.map(() => createCanvas(width, height));
+  // Painted as the runtime would: frame by frame, the three screens at the same moment.
+  for (let i = 0; i < 3; i++) await Promise.all(rows.map((p, k) => p!.draw(canvases[k]!.getContext('2d'), i)));
+  const strip = (k: number, y: number) => [...canvases[k]!.getContext('2d').getImageData(0, y, width, 1).data];
+  // Black at the edges (36 px each side), the game everywhere between, and no seam: the last
+  // row of one panel and the first of the next are neighbouring lines of the same picture.
+  for (const k of [0, 1, 2]) assert.deepEqual([...canvases[k]!.getContext('2d').getImageData(10, 230, 1, 1).data], [0, 0, 0, 255]);
+  const differs = (a: number[], b: number[]) => a.reduce((n, v, i) => n + Math.abs(v - b[i]!), 0) / a.length;
+  assert.ok(differs(strip(0, height - 1), strip(1, 0)) < 40, 'top and middle meet');
+  assert.ok(differs(strip(1, height - 1), strip(2, 0)) < 40, 'middle and bottom meet');
+  for (const p of rows) await p!.draw(createCanvas(width, height).getContext('2d'), 600 * 30 - 1);
+});
+
+test('a game of one’s own starts at the first level: E1M1 for Doom 1, MAP01 for Doom II-style WADs', { skip: !WAD && 'set KIOSKO_DOOM_WAD to an IWAD' }, async () => {
+  assert.equal(await hasMapLumps(WAD!), false);
+  assert.deepEqual(await playArgs(WAD!), ['-skill', '3', '-warp', '1', '1']);
+  // A Doom II-style directory: one MAP01 lump is enough to tell.
+  const dir = tmp();
+  const wad = Buffer.alloc(12 + 16);
+  wad.write('IWAD', 0, 'latin1');
+  wad.writeInt32LE(1, 4);
+  wad.writeInt32LE(12, 8);
+  wad.write('MAP01', 12 + 8, 'latin1');
+  writeFileSync(join(dir, 'd2.wad'), wad);
+  assert.deepEqual(await playArgs(join(dir, 'd2.wad')), ['-skill', '3', '-warp', '1']);
+});
+
+test('played from the Play page: a game, not the demos, and the buttons reach it', { skip: !WAD && 'set KIOSKO_DOOM_WAD to an IWAD' }, async () => {
+  const listeners: ((e: { key: string; pressed: boolean }) => void)[] = [];
+  const input = { on: (l: (e: { key: string; pressed: boolean }) => void) => (listeners.push(l), () => {}) };
+  const logs: string[] = [];
+  const base = createBaseContext({ now: Date.now(), log: (m) => logs.push(m), dataDir: tmp() });
+  // On a screen set as the top row of a stack: played, it takes the whole screen.
+  const player = await attract.prepare({ ...base, input, options: { wad: WAD!, panels: 3, row: 1, showStats: true }, width: 1920, height: 462, seed: 1, theme: themeById(undefined), canvas: { createCanvas, loadImage } as never, sources: {} } as never);
+  assert.ok(player, logs.join('\n'));
+  assert.equal(player.frames, Infinity);
+  assert.match(logs.join('\n'), /being played from the Play page/);
+  const g = createCanvas(1920, 462).getContext('2d');
+  const texts: string[] = [];
+  const fill = g.fillText.bind(g);
+  (g as unknown as { fillText: typeof g.fillText }).fillText = (t: string, x: number, y: number, m?: number) => (texts.push(t), fill(t, x, y, m));
+  const ammo = () => Number(texts[texts.lastIndexOf('E1M1') >= 0 ? texts.length - 1 : -1]);
+  for (let i = 0; i < 20; i++) {
+    await player.draw(g, i);
+    await new Promise((r) => setTimeout(r, 30));
+  }
+  assert.ok(texts.includes('E1M1'), `the first level, not a demo: ${texts.slice(-8).join(' | ')}`);
+  const before = ammo();
+  texts.length = 0;
+  for (const l of listeners) l({ key: 'a', pressed: true });
+  for (let i = 20; i < 60; i++) {
+    texts.length = 0;
+    await player.draw(g, i);
+    await new Promise((r) => setTimeout(r, 30));
+  }
+  for (const l of listeners) l({ key: 'a', pressed: false });
+  assert.ok(ammo() < before, `firing uses ammo: ${before} → ${ammo()}`);
+  void ammo;
 });

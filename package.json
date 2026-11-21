@@ -1,6 +1,6 @@
 {
   "name": "kiosko-plugin-doom",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Doom on your Kiosko panel: the game plays its own demos as an interlude. Engine (doomgeneric, GPL) in a process of its own; Freedoom levels unless you bring your own IWAD.",
   "type": "module",
   "license": "GPL-2.0-or-later",

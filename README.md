@@ -53,12 +53,49 @@ sending the frames.
 ### Doom demos — `doom/attract`
 
 The game plays its own recorded demos between title screens, with no one at
-the controls. The game (320×200, shown at 4:3) is centred on the panel, black
-around it.
+the controls. The game (320×200, shown at 4:3) is centred on the panel. On a
+wide one, the game's numbers go beside it in the panel's theme: the map, the
+level's time, kills, items and secrets on the left; health, armour, the
+weapon and its ammo on the right.
 
 | Option | Type | Default | |
 |---|---|---|---|
 | `wad` | path | `""` | IWAD. A game data file of your own (doom1.wad, DOOM.WAD, DOOM2.WAD…). Empty: Freedoom. |
+| `panels` | integer 1–3 | `1` | Panels stacked one on top of the other that show one game between them. |
+| `row` | integer 1–3 | `1` | Which of the stacked panels this screen is: 1 is the top one. |
+| `showStats` | boolean | `true` | The game's numbers beside it, when each side has at least 220 px (not in a stack). |
+
+#### Three panels, one game
+
+Three 1920×462 bars stacked are 1920×1386, nearly the game's 4:3. Give each
+of the three screens this interlude at the same times, with `panels: 3` and
+its `row` (1 at the top): they play one game between them, from one engine
+and one clock, each painting its third.
+
+![One game on three stacked panels](docs/stack.jpg)
+
+Screens playing the same WAD at the same time always share the game, stacked
+or not: one engine for all of them.
+
+## Playing it
+
+With Kiosko 0.2.7 or later the editor has a **Play** page: pick the screen
+with this interlude and press Play. A game of your own starts at the first
+level (Hurt me plenty) on that whole screen, and you play it with the
+keyboard, a game controller or, on a phone, the pad on the page:
+
+| Pad | Keyboard | Doom |
+|---|---|---|
+| ▲ ▼ ◀ ▶ | arrows, W S | walk, turn |
+| A | Space, Ctrl | fire |
+| B | E, F | use (doors, switches) |
+| L R | A D, Q | strafe |
+| Y | Shift | run |
+| X | Enter | choose in the menu |
+| Menu | Esc | the menu |
+| Map | Tab, M | the map |
+
+It ends after a minute without a button, or with Stop.
 
 ## How it works
 
