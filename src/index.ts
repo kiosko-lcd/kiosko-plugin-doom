@@ -53,8 +53,9 @@ export const attract = defineInterlude({
     'zh-Hans': '游戏在标题画面之间自动播放录制好的演示，无需操作。默认使用 Freedoom（免费关卡和美术，只下载一次，24 MB）；也可以用你自己的 IWAD。',
     'zh-Hant': '遊戲在標題畫面之間自動播放錄製好的示範，無需操作。預設使用 Freedoom（免費關卡和美術，只下載一次，24 MB）；也可以用你自己的 IWAD。',
   },
-  icon: 'gamepad-2',
+  icon: 'skull',
   fps: 30,
+  preview: { poster: 'docs/attract.jpg', video: 'docs/attract.webm' },
   // It can be played: the editor's Play page offers it (Kiosko 0.2.7 and later).
   ...({ input: true } as object),
   options: t.object({
@@ -166,7 +167,7 @@ export const attract = defineInterlude({
 export default definePlugin({
   id: 'doom',
   name: { en: 'Doom', es: 'Doom', de: 'Doom', 'zh-Hans': 'Doom', 'zh-Hant': 'Doom' },
-  version: '0.2.0',
+  version: '0.2.1',
   description: {
     en: 'Doom on your panel: the game plays its own demos as an interlude. The engine (doomgeneric, GPL) runs in a process of its own; the levels are Freedoom unless you bring your own IWAD.',
     es: 'Doom en tu panel: el juego reproduce sus propias demos como interludio. El motor (doomgeneric, GPL) corre en un proceso propio; los niveles son de Freedoom salvo que pongas tu propio IWAD.',
@@ -185,5 +186,7 @@ export default definePlugin({
     exec: ['node'],
     files: ['user'],
   },
+  icon: 'gamepad-2',
+  category: 'fun',
   interludes: [attract],
 });
