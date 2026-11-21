@@ -56,3 +56,23 @@ export const KEYS = {
   tab: 9,
   shift: 0x80 + 0x36,
 } as const;
+
+/**
+ * The Play page's pad (Kiosko's PadKey) as Doom's keys, its default bindings
+ * (m_controls.c): arrows walk and turn, A fires, B uses, L and R strafe,
+ * Y runs, Start is the menu (Escape), X chooses in it (Enter), Select the map.
+ */
+export const PAD_TO_DOOM: Record<string, number> = {
+  up: KEYS.up,
+  down: KEYS.down,
+  left: KEYS.left,
+  right: KEYS.right,
+  a: KEYS.fire,
+  b: KEYS.use,
+  l: KEYS.strafeLeft,
+  r: KEYS.strafeRight,
+  y: KEYS.shift,
+  x: KEYS.enter,
+  start: KEYS.escape,
+  select: KEYS.tab,
+};

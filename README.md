@@ -77,6 +77,26 @@ and one clock, each painting its third.
 Screens playing the same WAD at the same time always share the game, stacked
 or not: one engine for all of them.
 
+## Playing it
+
+With Kiosko 0.2.7 or later the editor has a **Play** page: pick the screen
+with this interlude and press Play. A game of your own starts at the first
+level (Hurt me plenty) on that whole screen, and you play it with the
+keyboard, a game controller or, on a phone, the pad on the page:
+
+| Pad | Keyboard | Doom |
+|---|---|---|
+| ▲ ▼ ◀ ▶ | arrows, W S | walk, turn |
+| A | Space, Ctrl | fire |
+| B | E, F | use (doors, switches) |
+| L R | A D, Q | strafe |
+| Y | Shift | run |
+| X | Enter | choose in the menu |
+| Menu | Esc | the menu |
+| Map | Tab, M | the map |
+
+It ends after a minute without a button, or with Stop.
+
 ## How it works
 
 - `engine/`: [doomgeneric](https://github.com/ozkl/doomgeneric) (the Doom

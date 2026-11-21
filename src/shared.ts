@@ -12,6 +12,7 @@ export interface GameEngine {
   readonly height: number;
   readonly alive: boolean;
   frame(ms: number): Promise<Frame>;
+  key(pressed: boolean, key: number): void;
   close(): void;
 }
 
@@ -26,11 +27,11 @@ export class SharedGame {
   private last: Frame | null = null;
   private inflight: Promise<Frame> | null = null;
   readonly engine: GameEngine;
-  private readonly key: string;
+  private readonly id: string;
 
-  private constructor(engine: GameEngine, key: string) {
+  private constructor(engine: GameEngine, id: string) {
     this.engine = engine;
-    this.key = key;
+    this.id = id;
   }
 
   /** The game for `key` (the WAD), started with `start` if there is none running. */
@@ -62,12 +63,17 @@ export class SharedGame {
     return this.last;
   }
 
+  /** A key to the game (someone playing it from the Play page). */
+  key(pressed: boolean, key: number): void {
+    this.engine.key(pressed, key);
+  }
+
   /** A screen is done with it; the last one stops the engine. */
   leave(): void {
     this.users = Math.max(0, this.users - 1);
     if (this.users > 0) return;
     this.engine.close();
-    void games.get(this.key)?.then((g) => g === this && games.delete(this.key));
+    void games.get(this.id)?.then((g) => g === this && games.delete(this.id));
   }
 
   get playing(): number {

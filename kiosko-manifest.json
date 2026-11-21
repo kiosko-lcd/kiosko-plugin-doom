@@ -79,7 +79,8 @@
         "zh-Hant": "遊戲在標題畫面之間自動播放錄製好的示範，無需操作。預設使用 Freedoom（免費關卡和美術，只下載一次，24 MB）；也可以用你自己的 IWAD。"
       },
       "icon": "gamepad-2",
-      "fps": 30
+      "fps": 30,
+      "input": true
     }
   ],
   "templates": []

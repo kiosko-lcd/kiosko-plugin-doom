@@ -115,6 +115,27 @@ export async function downloadFreedoom(dir: string, get: typeof fetch = fetch): 
   await rename(tmp, dir);
 }
 
+/**
+ * A Doom II-style IWAD (Doom II, Final Doom, Freedoom Phase 2): its levels
+ * are MAP01…, not E1M1…, and `-warp` takes one number. Read from the WAD's
+ * own directory of lumps.
+ */
+export async function hasMapLumps(path: string): Promise<boolean> {
+  const f = await open(path, 'r');
+  try {
+    const head = Buffer.alloc(12);
+    await f.read(head, 0, 12, 0);
+    const count = head.readInt32LE(4);
+    const at = head.readInt32LE(8);
+    const dir = Buffer.alloc(Math.max(0, Math.min(count, 100_000)) * 16);
+    await f.read(dir, 0, dir.length, at);
+    for (let i = 0; i < dir.length; i += 16) if (dir.toString('latin1', i + 8, i + 16).replace(/\0.*$/, '') === 'MAP01') return true;
+    return false;
+  } finally {
+    await f.close();
+  }
+}
+
 /** The user's own IWAD: it has to exist and look like one. */
 export async function ownWad(path: string): Promise<WadState> {
   if (!existsSync(path)) return { ready: false, reason: `${path} not found` };
